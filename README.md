@@ -1,0 +1,2 @@
+# CNN-pytorch-practice
+关于我学习pytorch框架针对CNN内容的实战项目，还有数维杯Resnet识别图片的实战项目
