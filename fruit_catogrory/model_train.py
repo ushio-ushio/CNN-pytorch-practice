@@ -2,6 +2,7 @@ from torchvision import transforms
 from torchvision.datasets import FashionMNIST
 import torch.utils.data as Data
 import numpy as np
+from torchvision.datasets import ImageFolder
 import matplotlib.pyplot as plt
 import pandas as pd
 from model import GoogLeNet,Inception
@@ -12,23 +13,29 @@ import time
 from tqdm import tqdm
 
 def train_val_data_process():
-    train_data =FashionMNIST(root='./data'
-                         ,train=True,
-                         transform=transforms.Compose([transforms.Resize((224, 224)),transforms.ToTensor()]),
-                         download=True)
+    ROOT_TRAIN=r'data\train'
+
+    normalize=transforms.Normalize([0.229, 0.196,  0.143],[0.099,0.0800, 0.0660])
+
+    train_transform=transforms.Compose([transforms.Resize((224,224)),transforms.ToTensor(),normalize])
+
+    train_data=ImageFolder(ROOT_TRAIN,transform=train_transform)
+
     train_data,val_data=Data.random_split(train_data,[round(0.8*len(train_data)),round(0.2*len(train_data))])
 
     train_dataloader=Data.DataLoader(dataset=train_data,
                                      batch_size=16,
                                      shuffle=True,
                                      pin_memory=True,
-                                     num_workers=4)
+                                     num_workers=8,
+                                     persistent_workers=True)
 
     val_dataloader = Data.DataLoader(dataset=val_data,
                                        batch_size=16,
                                        shuffle=True,
                                      pin_memory=True,
-                                     num_workers=4)
+                                     num_workers=8,
+                                     persistent_workers=True)
 
     return train_dataloader,val_dataloader
 
@@ -151,5 +158,5 @@ def matplot_acc_loss(train_process):
 if __name__=="__main__":
     model=GoogLeNet(Inception)
     train_dataloader,val_dataloader=train_val_data_process()
-    train_process=train_model_process(model,train_dataloader,val_dataloader,20)
+    train_process=train_model_process(model,train_dataloader,val_dataloader,50)
     matplot_acc_loss(train_process)
