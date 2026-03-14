@@ -32,7 +32,7 @@ class GoogLeNet(nn.Module):
     def __init__(self,Inception):
         super(GoogLeNet,self).__init__()
         self.b1=nn.Sequential(
-            nn.Conv2d(in_channels=1,out_channels=64,kernel_size=7,stride=2,padding=3),
+            nn.Conv2d(in_channels=3,out_channels=64,kernel_size=7,stride=2,padding=3),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=3,stride=2,padding=1),
 
@@ -62,7 +62,7 @@ class GoogLeNet(nn.Module):
             Inception(832,384,(192,384),(48,128),128),
             nn.AdaptiveAvgPool2d((1,1)),
             nn.Flatten(),
-            nn.Linear(1024,10),
+            nn.Linear(1024,2),
         )
         for m in self.modules():
             if isinstance(m,nn.Conv2d):
