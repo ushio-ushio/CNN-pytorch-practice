@@ -2,33 +2,51 @@ from torchvision import transforms
 from torchvision.datasets import FashionMNIST
 import torch.utils.data as Data
 import numpy as np
+from torchvision.datasets import ImageFolder
 import matplotlib.pyplot as plt
 import pandas as pd
-from LeNet.plot import train_loader
-from model import LeNet
+from model import Residual,ResNet_18
 import torch
 from torch import nn
 import copy
 import time
+from tqdm import tqdm
 
 def train_val_data_process():
-    train_data =FashionMNIST(root='./data'
-                         ,train=True,
-                         transform=transforms.Compose([transforms.ToTensor()]),
-                         download=True)
+    ROOT_TRAIN=r'data\train'
+
+    normalize=transforms.Normalize([0.173, 0.151, 0.143],[0.074, 0.0622, 0.0593])
+
+    train_transform=transforms.Compose([transforms.Resize((224,224)),transforms.ToTensor(),normalize])
+
+    train_data=ImageFolder(ROOT_TRAIN,transform=train_transform)
+
     train_data,val_data=Data.random_split(train_data,[round(0.8*len(train_data)),round(0.2*len(train_data))])
 
     train_dataloader=Data.DataLoader(dataset=train_data,
                                      batch_size=32,
                                      shuffle=True,
-                                     num_workers=2)
+                                     pin_memory=True,
+                                     num_workers=8,
+                                     persistent_workers=True)
 
     val_dataloader = Data.DataLoader(dataset=val_data,
                                        batch_size=32,
                                        shuffle=True,
-                                       num_workers=2)
+                                     pin_memory=True,
+                                     num_workers=8,
+                                     persistent_workers=True)
 
     return train_dataloader,val_dataloader
+
+def add_progress_bar(dataloader, epoch, num_epochs, mode="Train"):
+    """
+    独立的进度条包装函数。
+    不破坏原结构，只需将原有的 dataloader 作为参数传入即可。
+    """
+    desc_text = f"{mode} Epoch {epoch}/{num_epochs-1}"
+    # leave=False 表示当前 epoch 跑完后进度条会自动消失，保持控制台整洁
+    return tqdm(dataloader, desc=desc_text, leave=False)
 
 def train_model_process(model,train_dataloader,val_dataloader,num_epochs):
 
@@ -59,7 +77,7 @@ def train_model_process(model,train_dataloader,val_dataloader,num_epochs):
         train_num=0
         val_num=0
 
-        for step,(b_x,b_y) in enumerate(train_dataloader):
+        for step,(b_x,b_y) in enumerate(add_progress_bar(train_dataloader, epoch, num_epochs, mode="Train")):
             b_x=b_x.to(device)
             b_y=b_y.to(device)
             model.train()
@@ -79,7 +97,7 @@ def train_model_process(model,train_dataloader,val_dataloader,num_epochs):
             train_corrects+=torch.sum(pre_lab==b_y.data)
             train_num+=b_x.size(0)
 
-        for step,(b_x,b_y) in enumerate(val_dataloader):
+        for step,(b_x,b_y) in enumerate(add_progress_bar(val_dataloader, epoch, num_epochs, mode="Val")):
             b_x=b_x.to(device)
             b_y=b_y.to(device)
 
@@ -95,7 +113,7 @@ def train_model_process(model,train_dataloader,val_dataloader,num_epochs):
         train_loss_all.append((train_loss/train_num))
         val_loss_all.append(val_loss/val_num)
         train_acc_all.append(train_corrects.double().item()/train_num)
-        val_acc_all.append(train_corrects.double().item()/val_num)
+        val_acc_all.append(val_corrects.double().item()/val_num)
 
         print("{} train loss:{:.4f} train acc: {:.4f}".format(epoch,train_loss_all[-1],train_acc_all[-1]))
         print("{} val loss:{:.4f} val acc: {:.4f}".format(epoch, val_loss_all[-1], val_acc_all[-1]))
@@ -108,7 +126,7 @@ def train_model_process(model,train_dataloader,val_dataloader,num_epochs):
         print("训练耗费的时间{:.0f}m{:.0f}s".format(time_use//60,time_use%60))
 
     model.load_state_dict(best_model_wts)
-    torch.save(best_model_wts,'C:/Users/11470/Desktop/pytorch_learning/LeNet/best_model.pth')
+    torch.save(best_model_wts, './best_model.pth')
 
     train_process=pd.DataFrame(data={"epoch":range(num_epochs),
                                          "train_loss_all":train_loss_all,
@@ -136,12 +154,9 @@ def matplot_acc_loss(train_process):
     save_path = './training_curve.png'
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.show()
-    
-
-
 
 if __name__=="__main__":
-    LeNet=LeNet()
+    model=ResNet_18(Residual)
     train_dataloader,val_dataloader=train_val_data_process()
-    train_process=train_model_process(LeNet,train_dataloader,val_dataloader,2)
+    train_process=train_model_process(model,train_dataloader,val_dataloader,50)
     matplot_acc_loss(train_process)

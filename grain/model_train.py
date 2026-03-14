@@ -2,9 +2,10 @@ from torchvision import transforms
 from torchvision.datasets import FashionMNIST
 import torch.utils.data as Data
 import numpy as np
+from torchvision.datasets import ImageFolder
 import matplotlib.pyplot as plt
 import pandas as pd
-from model import VGG16
+from model import Residual,ResNet_18
 import torch
 from torch import nn
 import copy
@@ -12,23 +13,29 @@ import time
 from tqdm import tqdm
 
 def train_val_data_process():
-    train_data =FashionMNIST(root='./data'
-                         ,train=True,
-                         transform=transforms.Compose([transforms.Resize((224, 224)),transforms.ToTensor()]),
-                         download=True)
+    ROOT_TRAIN=r'data\train'
+
+    normalize=transforms.Normalize([0.042,0.0428,0.0441],[0.033,0.0343, 0.0363])
+
+    train_transform=transforms.Compose([transforms.Resize((224,224)),transforms.ToTensor(),normalize])
+
+    train_data=ImageFolder(ROOT_TRAIN,transform=train_transform)
+
     train_data,val_data=Data.random_split(train_data,[round(0.8*len(train_data)),round(0.2*len(train_data))])
 
     train_dataloader=Data.DataLoader(dataset=train_data,
-                                     batch_size=16,
+                                     batch_size=32,
                                      shuffle=True,
                                      pin_memory=True,
-                                     num_workers=4)
+                                     num_workers=8,
+                                     persistent_workers=True)
 
     val_dataloader = Data.DataLoader(dataset=val_data,
-                                       batch_size=16,
+                                       batch_size=32,
                                        shuffle=True,
                                      pin_memory=True,
-                                     num_workers=4)
+                                     num_workers=8,
+                                     persistent_workers=True)
 
     return train_dataloader,val_dataloader
 
@@ -70,10 +77,11 @@ def train_model_process(model,train_dataloader,val_dataloader,num_epochs):
         train_num=0
         val_num=0
 
+        model.train()
         for step,(b_x,b_y) in enumerate(add_progress_bar(train_dataloader, epoch, num_epochs, mode="Train")):
             b_x=b_x.to(device)
             b_y=b_y.to(device)
-            model.train()
+
             output=model(b_x)
 
             pre_lab=torch.argmax(output,dim=1)
@@ -90,11 +98,13 @@ def train_model_process(model,train_dataloader,val_dataloader,num_epochs):
             train_corrects+=torch.sum(pre_lab==b_y.data)
             train_num+=b_x.size(0)
 
-        for step,(b_x,b_y) in enumerate(add_progress_bar(val_dataloader, epoch, num_epochs, mode="Val")):
+        model.eval()
+        with torch.no_grad():
+         for step,(b_x,b_y) in enumerate(add_progress_bar(val_dataloader, epoch, num_epochs, mode="Val")):
             b_x=b_x.to(device)
             b_y=b_y.to(device)
 
-            model.eval()
+
             output=model(b_x)
             pre_lab=torch.argmax(output,dim=1)
             loss=criterion(output,b_y)
@@ -119,7 +129,7 @@ def train_model_process(model,train_dataloader,val_dataloader,num_epochs):
         print("训练耗费的时间{:.0f}m{:.0f}s".format(time_use//60,time_use%60))
 
     model.load_state_dict(best_model_wts)
-    torch.save(best_model_wts,'C:/Users/11470/Desktop/pytorch_learning/VGG-16/best_model.pth')
+    torch.save(best_model_wts, './best_model.pth')
 
     train_process=pd.DataFrame(data={"epoch":range(num_epochs),
                                          "train_loss_all":train_loss_all,
@@ -144,10 +154,12 @@ def matplot_acc_loss(train_process):
     plt.xlabel("epoch")
     plt.ylabel("acc")
     plt.legend()
+    save_path = './training_curve.png'
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.show()
 
 if __name__=="__main__":
-    model=VGG16()
+    model=ResNet_18(Residual)
     train_dataloader,val_dataloader=train_val_data_process()
-    train_process=train_model_process(model,train_dataloader,val_dataloader,10)
+    train_process=train_model_process(model,train_dataloader,val_dataloader,50)
     matplot_acc_loss(train_process)

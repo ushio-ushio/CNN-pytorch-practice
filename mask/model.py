@@ -30,7 +30,7 @@ class ResNet_18(nn.Module):
     def __init__(self,Residual):
         super(ResNet_18,self).__init__()
         self.b1=nn.Sequential(
-            nn.Conv2d(in_channels=1,out_channels=64,kernel_size=7,padding=3,stride=2),
+            nn.Conv2d(in_channels=3,out_channels=64,kernel_size=7,padding=3,stride=2),
             nn.ReLU(),
             nn.BatchNorm2d(64),
             nn.MaxPool2d(kernel_size=3,padding=1,stride=2),
@@ -54,7 +54,7 @@ class ResNet_18(nn.Module):
         self.b6=nn.Sequential(
             nn.AdaptiveAvgPool2d((1,1)),
             nn.Flatten(),
-            nn.Linear(512,10)
+            nn.Linear(512,2)
         )
 
     def forward(self,x):

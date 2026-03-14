@@ -2,16 +2,21 @@ import torch
 import torch.utils.data as Data
 from torchvision import transforms
 from torchvision.datasets import FashionMNIST
-from model import AlexNet
+from model import Residual,ResNet_18
+from  torchvision.datasets import ImageFolder
+from PIL import Image
+
 
 def test_data_process():
-    test_data = FashionMNIST(root='./data',
-                              train=False,
-                              transform=transforms.Compose([transforms.Resize(size=227), transforms.ToTensor()]),
-                              download=True)
+    ROOT_TRAIN=r'data\test'
+    normalize = transforms.Normalize([0.173, 0.151, 0.143],[0.074, 0.0622, 0.0593])
+
+    test_transform = transforms.Compose([transforms.Resize((224, 224)), transforms.ToTensor(), normalize])
+
+    test_data = ImageFolder(ROOT_TRAIN, transform=test_transform)
 
     test_dataloader = Data.DataLoader(dataset=test_data,
-                                       batch_size=1,
+                                       batch_size=16,
                                        shuffle=False,
                                        num_workers=0)
     return test_dataloader
@@ -51,28 +56,54 @@ def test_model_process(model, test_dataloader):
     print("测试的准确率为：", test_acc)
 
 if __name__=="__main__":
-    model=AlexNet()
-    model.load_state_dict(torch.load('best_model.pth'))
+    model=ResNet_18(Residual)
+    model.load_state_dict(torch.load('best_model.pth',weights_only=True))
     # 加载测试数据
     test_dataloader = test_data_process()
     # 加载模型测试的函数
     test_model_process(model, test_dataloader)
 
-
+    #
     # 设定测试所用到的设备，有GPU用GPU没有GPU用CPU
     device = "cuda" if torch.cuda.is_available() else 'cpu'
     model = model.to(device)
 
-    classes = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
-    with torch.no_grad():
-        for b_x, b_y in test_dataloader:
-            b_x = b_x.to(device)
-            b_y = b_y.to(device)
+    # image=Image.open('grren.png').convert('RGB')
+    # normalize = transforms.Normalize([0.229, 0.196,  0.143],[0.099,0.0800, 0.0660])
+    #
+    # test_transform = transforms.Compose([transforms.Resize((224, 224)), transforms.ToTensor(), normalize])
+    #
+    # image=test_transform(image)
+    # image=image.unsqueeze(0)
+    #
+    # classes = ['apple', 'banana','grape','orange','pear']
+    #
+    # with torch.no_grad():
+    #     model.eval()
+    #     image=image.to(device)
+    #     output=model(image)
+    #     pre_lab=torch.argmax(output,dim=1)
+    #     result=pre_lab.item()
+    # print("预测值：",  classes[result])
+    #
 
-            # 设置模型为验证模型
-            model.eval()
-            output = model(b_x)
-            pre_lab = torch.argmax(output, dim=1)
-            result = pre_lab.item()
-            label = b_y.item()
-            print("预测值：",  classes[result], "------", "真实值：", classes[label])
+
+
+
+
+
+
+
+    # classes = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
+    # with torch.no_grad():
+    #     for b_x, b_y in test_dataloader:
+    #         b_x = b_x.to(device)
+    #         b_y = b_y.to(device)
+    #
+    #         # 设置模型为验证模型
+    #         model.eval()
+    #         output = model(b_x)
+    #         pre_lab = torch.argmax(output, dim=1)
+    #         result = pre_lab.item()
+    #         label = b_y.item()
+    #         print("预测值：",  classes[result], "------", "真实值：", classes[label])
